@@ -1,0 +1,341 @@
+### ================= Health Check =================
+GET http://localhost:3001/api/health
+Accept: application/json
+
+### ================= Register User =================
+POST http://localhost:3001/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test2@example.com",
+  "password": "Password123!",
+  "fullName": "Test User"
+}
+
+### ================= Login User =================
+POST http://localhost:3001/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test2@example.com",
+  "password": "Password123!"
+}
+
+### ================= Get Current User =================
+GET http://localhost:3001/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### ================= Change Password =================
+POST http://localhost:3001/api/auth/change-password
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "oldPassword": "Password123!",
+  "newPassword": "NewPassword123!"
+}
+
+### ================= Refresh Token =================
+POST http://localhost:3001/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ================= Logout =================
+POST http://localhost:3001/api/auth/logout
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ================= Delete Account =================
+DELETE http://localhost:3001/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+###############################################
+###          PROJECT ENDPOINTS              ###
+###############################################
+
+### ================= Create Project =================
+POST http://localhost:3001/api/projects
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "AI-Powered Property Finder",
+  "industry": "Real Estate Tech",
+  "stage": "mvp",
+  "description": "A platform that uses AI to match buyers with properties based on lifestyle preferences, not just location and price. We analyze commute patterns, neighborhood vibes, and future development plans.",
+  "whatIsBuilt": "Core matching algorithm, user onboarding flow, property database integration with 50k listings",
+  "whatIsMissing": "Mobile app, AI recommendation engine refinement, partnership with real estate agencies",
+  "partnershipType": "technical",
+  "riskLevel": "medium"
+}
+
+### ================= Get Public Projects =================
+GET http://localhost:3001/api/projects
+Accept: application/json
+
+### ================= Get Public Projects (with filters) =================
+GET http://localhost:3001/api/projects?industry=tech&stage=mvp&minScore=60&page=1&limit=10
+Accept: application/json
+
+### ================= Get My Projects =================
+GET http://localhost:3001/api/projects/my
+Authorization: Bearer {{accessToken}}
+
+### ================= Get My Project Stats =================
+GET http://localhost:3001/api/projects/my/stats
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Project by ID =================
+GET http://localhost:3001/api/projects/{{projectId}}
+Accept: application/json
+
+### ================= Update Project =================
+PATCH http://localhost:3001/api/projects/{{projectId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "stage": "beta",
+  "whatIsBuilt": "Core matching algorithm, user onboarding, property database, mobile app beta"
+}
+
+### ================= Recalculate Score (Admin Only) =================
+POST http://localhost:3001/api/projects/{{projectId}}/recalculate
+Authorization: Bearer {{accessToken}}
+
+### ================= Delete Project =================
+DELETE http://localhost:3001/api/projects/{{projectId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################
+###     ARCHITECTURAL MAP ENDPOINTS         ###
+###############################################
+
+### ================= Upload Map =================
+# Use form-data with:
+# - file: (select file)
+# - name: "Floor Plan - Level 1"
+# - description: "Ground floor architectural drawing"
+POST http://localhost:3001/api/projects/{{projectId}}/maps
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="name"
+
+Floor Plan - Level 1
+--boundary
+Content-Disposition: form-data; name="description"
+
+Ground floor architectural drawing
+--boundary
+Content-Disposition: form-data; name="file"; filename="floorplan.pdf"
+Content-Type: application/pdf
+
+< ./sample-files/floorplan.pdf
+--boundary--
+
+### ================= Get Project Maps =================
+GET http://localhost:3001/api/projects/{{projectId}}/maps
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Map Statistics =================
+GET http://localhost:3001/api/projects/{{projectId}}/maps/stats
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Single Map =================
+GET http://localhost:3001/api/maps/{{mapId}}
+Authorization: Bearer {{accessToken}}
+
+### ================= Download Map File =================
+GET http://localhost:3001/api/maps/{{mapId}}/download
+Authorization: Bearer {{accessToken}}
+
+### ================= Update Map Metadata =================
+PATCH http://localhost:3001/api/maps/{{mapId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Floor Plan - Level 1 (Revised)",
+  "description": "Updated ground floor with new kitchen layout"
+}
+
+### ================= Delete Map =================
+DELETE http://localhost:3001/api/maps/{{mapId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################
+###     MEASUREMENT ENDPOINTS               ###
+###############################################
+
+### ================= Create Area Measurement =================
+POST http://localhost:3001/api/maps/{{mapId}}/measurements
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Living Room Area",
+  "type": "area",
+  "points": [
+    {"x": 0, "y": 0},
+    {"x": 5, "y": 0},
+    {"x": 5, "y": 4},
+    {"x": 0, "y": 4}
+  ],
+  "color": "#4CAF50",
+  "notes": "Main living area including seating"
+}
+
+### ================= Create Distance Measurement =================
+POST http://localhost:3001/api/maps/{{mapId}}/measurements
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Wall Length",
+  "type": "distance",
+  "points": [
+    {"x": 0, "y": 0},
+    {"x": 5, "y": 0}
+  ],
+  "color": "#2196F3"
+}
+
+### ================= Create Perimeter Measurement =================
+POST http://localhost:3001/api/maps/{{mapId}}/measurements
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Room Perimeter",
+  "type": "perimeter",
+  "points": [
+    {"x": 0, "y": 0},
+    {"x": 5, "y": 0},
+    {"x": 5, "y": 4},
+    {"x": 0, "y": 4}
+  ]
+}
+
+### ================= Get Map Measurements =================
+GET http://localhost:3001/api/maps/{{mapId}}/measurements
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Project Measurements =================
+GET http://localhost:3001/api/projects/{{projectId}}/measurements
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Measurement Totals =================
+GET http://localhost:3001/api/projects/{{projectId}}/measurements/totals
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Single Measurement =================
+GET http://localhost:3001/api/measurements/{{measurementId}}
+Authorization: Bearer {{accessToken}}
+
+### ================= Update Measurement =================
+PATCH http://localhost:3001/api/measurements/{{measurementId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Living Room Area (Updated)",
+  "color": "#FF5722",
+  "notes": "Updated measurement with furniture layout"
+}
+
+### ================= Delete Measurement =================
+DELETE http://localhost:3001/api/measurements/{{measurementId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################
+###     COST ESTIMATE ENDPOINTS             ###
+###############################################
+
+### ================= Create Cost Estimate =================
+POST http://localhost:3001/api/projects/{{projectId}}/estimates
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Foundation Cost Estimate",
+  "description": "Cost estimate for foundation work",
+  "items": [
+    {
+      "name": "Concrete",
+      "category": "material",
+      "unitCost": 120,
+      "unit": "cubic meter",
+      "quantity": 25,
+      "totalCost": 3000
+    },
+    {
+      "name": "Rebar Steel",
+      "category": "material",
+      "unitCost": 800,
+      "unit": "ton",
+      "quantity": 2,
+      "totalCost": 1600
+    },
+    {
+      "name": "Labor - Foundation",
+      "category": "labor",
+      "unitCost": 50,
+      "unit": "hour",
+      "quantity": 80,
+      "totalCost": 4000
+    }
+  ],
+  "taxRate": 10,
+  "currency": "USD",
+  "notes": "Estimate based on architectural drawings v1.2"
+}
+
+### ================= Get Project Estimates =================
+GET http://localhost:3001/api/projects/{{projectId}}/estimates
+Authorization: Bearer {{accessToken}}
+
+### ================= Get Cost Summary =================
+GET http://localhost:3001/api/projects/{{projectId}}/estimates/summary
+Authorization: Bearer {{accessToken}}
+
+### ================= Calculate Costs from Measurements =================
+POST http://localhost:3001/api/projects/{{projectId}}/calculate
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "measurementIds": ["{{measurementId}}"],
+  "unitCosts": [
+    {"type": "area", "costPerUnit": 50, "unit": "per sqm"},
+    {"type": "distance", "costPerUnit": 25, "unit": "per meter"},
+    {"type": "volume", "costPerUnit": 120, "unit": "per cbm"}
+  ]
+}
+
+### ================= Get Single Estimate =================
+GET http://localhost:3001/api/estimates/{{estimateId}}
+Authorization: Bearer {{accessToken}}
+
+### ================= Update Estimate =================
+PATCH http://localhost:3001/api/estimates/{{estimateId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Foundation Cost Estimate (Revised)",
+  "taxRate": 12,
+  "notes": "Updated with revised material costs"
+}
+
+### ================= Delete Estimate =================
+DELETE http://localhost:3001/api/estimates/{{estimateId}}
+Authorization: Bearer {{accessToken}}
