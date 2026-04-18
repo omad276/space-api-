@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 
@@ -6,7 +6,7 @@ const router = Router();
 
 // One-time admin setup endpoint
 // DELETE THIS FILE AFTER CREATING ADMIN
-router.post('/create-admin', async (_req, res) => {
+router.post('/create-admin', async (_req: Request, res: Response) => {
   try {
     const adminEmail = 'admin@space.com';
 
