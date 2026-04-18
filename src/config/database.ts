@@ -4,7 +4,8 @@ import { config } from './index.js';
 // Connection state tracking
 let isConnected = false;
 
-let mongoServer: { getUri: () => string; stop: () => Promise<void> } | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mongoServer: any = null;
 
 /**
  * Connect to MongoDB database (with fallback to in-memory)

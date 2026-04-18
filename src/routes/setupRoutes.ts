@@ -6,17 +6,18 @@ const router = Router();
 
 // One-time admin setup endpoint
 // DELETE THIS FILE AFTER CREATING ADMIN
-router.post('/create-admin', async (_req: Request, res: Response) => {
+router.post('/create-admin', async (_req: Request, res: Response): Promise<void> => {
   try {
     const adminEmail = 'admin@space.com';
 
     // Check if admin already exists
     const existingAdmin = await User.findOne({ email: adminEmail });
     if (existingAdmin) {
-      return res.json({
+      res.json({
         success: false,
         message: 'Admin user already exists',
       });
+      return;
     }
 
     // Create admin user
