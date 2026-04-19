@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 
 const router = Router();
@@ -20,13 +19,10 @@ router.post('/create-admin', async (_req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Create admin user
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash('Admin@2024', salt);
-
+    // Create admin user - password will be hashed by User model pre-save hook
     const admin = new User({
       email: adminEmail,
-      password: hashedPassword,
+      password: 'Admin@2024',
       fullName: 'Super Admin',
       phone: '+249911716850',
       countryCode: '+249',
