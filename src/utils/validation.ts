@@ -197,6 +197,11 @@ export const propertyTypeSchema = z.enum([
   'warehouse',
   'factory',
   'industrial_land',
+  'storage',
+  'shipping_container',
+  'aviation_hangar',
+  'train_cargo',
+  'retail',
 ]);
 
 export const propertyCategorySchema = z.enum(['residential', 'commercial', 'industrial']);

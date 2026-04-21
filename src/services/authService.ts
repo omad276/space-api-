@@ -1,4 +1,6 @@
+import crypto from 'crypto';
 import { User } from '../models/User.js';
+import VerificationToken from '../models/VerificationToken.js';
 import { generateTokens, verifyRefreshToken } from '../utils/jwt.js';
 import { AppError } from '../utils/AppError.js';
 import {
@@ -8,6 +10,7 @@ import {
   ChangePasswordInput,
 } from '../utils/validation.js';
 import { PublicUser, AuthTokens } from '../types/index.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from './emailService.js';
 
 // ============================================
 // Response Types
@@ -40,7 +43,20 @@ export async function register(data: RegisterInput): Promise<AuthResponse> {
     phone: data.phone || '',
     countryCode: data.countryCode || '',
     role: data.role || 'buyer',
+    isVerified: false, // User needs to verify email
   });
+
+  // Create verification token
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  await VerificationToken.create({
+    userId: user._id,
+    token: verificationToken,
+    type: 'email',
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+  });
+
+  // Send verification email (non-blocking)
+  sendVerificationEmail(user.email, verificationToken, user.fullName);
 
   // Generate tokens
   const tokens = generateTokens(user._id.toString(), user.email, user.role);
@@ -174,4 +190,120 @@ export async function deactivateUser(userId: string): Promise<void> {
   if (!user) {
     throw AppError.notFound('User not found');
   }
+}
+
+/**
+ * Verify email with token
+ */
+export async function verifyEmail(token: string): Promise<boolean> {
+  const verificationToken = await VerificationToken.findOne({ token, type: 'email' });
+
+  if (!verificationToken) {
+    throw AppError.badRequest('Invalid verification token');
+  }
+
+  if (verificationToken.expiresAt < new Date()) {
+    await VerificationToken.deleteOne({ _id: verificationToken._id });
+    throw AppError.badRequest('Verification token has expired');
+  }
+
+  // Update user as verified
+  await User.findByIdAndUpdate(verificationToken.userId, { isVerified: true });
+
+  // Delete the used token
+  await VerificationToken.deleteOne({ _id: verificationToken._id });
+
+  return true;
+}
+
+/**
+ * Resend verification email
+ */
+export async function resendVerificationEmail(email: string): Promise<boolean> {
+  const user = await User.findByEmail(email);
+
+  if (!user) {
+    // Don't reveal if user exists
+    return true;
+  }
+
+  if (user.isVerified) {
+    throw AppError.badRequest('Email is already verified');
+  }
+
+  // Delete any existing tokens
+  await VerificationToken.deleteMany({ userId: user._id, type: 'email' });
+
+  // Create new token
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  await VerificationToken.create({
+    userId: user._id,
+    token: verificationToken,
+    type: 'email',
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
+
+  // Send email
+  await sendVerificationEmail(user.email, verificationToken, user.fullName);
+
+  return true;
+}
+
+/**
+ * Request password reset
+ */
+export async function forgotPassword(email: string): Promise<boolean> {
+  const user = await User.findByEmail(email);
+
+  if (!user) {
+    // Don't reveal if user exists
+    return true;
+  }
+
+  // Delete any existing password reset tokens
+  await VerificationToken.deleteMany({ userId: user._id, type: 'password' });
+
+  // Create new token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  await VerificationToken.create({
+    userId: user._id,
+    token: resetToken,
+    type: 'password',
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+  });
+
+  // Send email
+  await sendPasswordResetEmail(user.email, resetToken, user.fullName);
+
+  return true;
+}
+
+/**
+ * Reset password with token
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
+  const resetToken = await VerificationToken.findOne({ token, type: 'password' });
+
+  if (!resetToken) {
+    throw AppError.badRequest('Invalid reset token');
+  }
+
+  if (resetToken.expiresAt < new Date()) {
+    await VerificationToken.deleteOne({ _id: resetToken._id });
+    throw AppError.badRequest('Reset token has expired');
+  }
+
+  // Find user and update password
+  const user = await User.findById(resetToken.userId);
+  if (!user) {
+    throw AppError.notFound('User not found');
+  }
+
+  user.password = newPassword; // Will be hashed by pre-save hook
+  await user.save();
+
+  // Delete the used token
+  await VerificationToken.deleteOne({ _id: resetToken._id });
+
+  return true;
 }

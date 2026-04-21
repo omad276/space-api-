@@ -21,6 +21,18 @@ router.post('/refresh', authController.refresh);
 // POST /api/auth/logout - Logout user
 router.post('/logout', authController.logout);
 
+// GET /api/auth/verify-email - Verify email with token
+router.get('/verify-email', authController.verifyEmail);
+
+// POST /api/auth/resend-verification - Resend verification email
+router.post('/resend-verification', authLimiter, authController.resendVerification);
+
+// POST /api/auth/forgot-password - Request password reset
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+
+// POST /api/auth/reset-password - Reset password with token
+router.post('/reset-password', authLimiter, authController.resetPassword);
+
 // ============================================
 // Protected Routes (authentication required)
 // ============================================

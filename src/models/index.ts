@@ -6,3 +6,4 @@ export { Map } from './Map.js';
 export { Measurement } from './Measurement.js';
 export { CostEstimate } from './CostEstimate.js';
 export { Industrial } from './Industrial.js';
+export { default as VerificationToken } from './VerificationToken.js';

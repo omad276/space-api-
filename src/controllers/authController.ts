@@ -9,6 +9,7 @@ import {
   changePasswordSchema,
 } from '../utils/validation.js';
 import { AuthRequest, ApiResponse } from '../types/index.js';
+import { z } from 'zod';
 
 // ============================================
 // Auth Controller
@@ -142,5 +143,87 @@ export async function deactivateAccount(
     success: true,
     message: 'Account deactivated',
     messageAr: 'تم تعطيل الحساب',
+  });
+}
+
+/**
+ * GET /api/auth/verify-email
+ * Verify email with token
+ */
+export async function verifyEmail(req: AuthRequest, res: Response<ApiResponse>): Promise<void> {
+  const { token } = req.query;
+
+  if (!token || typeof token !== 'string') {
+    res.status(400).json({
+      success: false,
+      message: 'Verification token is required',
+      messageAr: 'رمز التحقق مطلوب',
+    });
+    return;
+  }
+
+  await authService.verifyEmail(token);
+
+  res.json({
+    success: true,
+    message: 'Email verified successfully',
+    messageAr: 'تم التحقق من البريد الإلكتروني بنجاح',
+  });
+}
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend verification email
+ */
+export async function resendVerification(
+  req: AuthRequest,
+  res: Response<ApiResponse>
+): Promise<void> {
+  const schema = z.object({ email: z.string().email() });
+  const { email } = validate(schema, req.body);
+
+  await authService.resendVerificationEmail(email);
+
+  res.json({
+    success: true,
+    message: 'If an account exists, a verification email has been sent',
+    messageAr: 'إذا كان الحساب موجوداً، تم إرسال رسالة التحقق',
+  });
+}
+
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset
+ */
+export async function forgotPassword(req: AuthRequest, res: Response<ApiResponse>): Promise<void> {
+  const schema = z.object({ email: z.string().email() });
+  const { email } = validate(schema, req.body);
+
+  await authService.forgotPassword(email);
+
+  res.json({
+    success: true,
+    message: 'If an account exists, a reset link has been sent',
+    messageAr: 'إذا كان الحساب موجوداً، تم إرسال رابط إعادة التعيين',
+  });
+}
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password with token
+ */
+export async function resetPassword(req: AuthRequest, res: Response<ApiResponse>): Promise<void> {
+  const schema = z.object({
+    token: z.string().min(1),
+    newPassword: z.string().min(8),
+  });
+  const { token, newPassword } = validate(schema, req.body);
+
+  await authService.resetPassword(token, newPassword);
+
+  res.json({
+    success: true,
+    message: 'Password reset successfully',
+    messageAr: 'تم إعادة تعيين كلمة المرور بنجاح',
   });
 }

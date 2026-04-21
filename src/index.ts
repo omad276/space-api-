@@ -1,7 +1,9 @@
 import fs from 'fs';
+import http from 'http';
 import app from './app.js';
 import { config } from './config/index.js';
 import { connectDatabase } from './config/database.js';
+import { initSocket } from './socket.js';
 
 // ============================================
 // Ensure Upload Directories Exist
@@ -23,16 +25,21 @@ async function startServer(): Promise<void> {
       console.warn('⚠️  MongoDB not available - running without database');
     }
 
-    // Start Express server
-    app.listen(config.port, () => {
+    // Create HTTP server and initialize Socket.IO
+    const server = http.createServer(app);
+    initSocket(server);
+
+    // Start server
+    server.listen(config.port, () => {
       console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║   🏠  UPGREAT API SERVER                                 ║
+║   🏠  SPACE PLATFORM API                                 ║
 ║                                                          ║
 ║   Status:      Running                                   ║
 ║   Port:        ${String(config.port).padEnd(42)}║
 ║   Environment: ${config.nodeEnv.padEnd(42)}║
+║   WebSocket:   Enabled                                   ║
 ║                                                          ║
 ╠══════════════════════════════════════════════════════════╣
 ║                                                          ║
@@ -41,40 +48,20 @@ async function startServer(): Promise<void> {
 ║   Auth:                                                  ║
 ║   ├─ POST   /api/auth/register                           ║
 ║   ├─ POST   /api/auth/login                              ║
-║   ├─ POST   /api/auth/refresh                            ║
-║   ├─ POST   /api/auth/logout                             ║
+║   ├─ GET    /api/auth/verify-email                       ║
+║   ├─ POST   /api/auth/forgot-password                    ║
+║   ├─ POST   /api/auth/reset-password                     ║
 ║   ├─ GET    /api/auth/me                                 ║
-║   ├─ PATCH  /api/auth/me                                 ║
-║   ├─ POST   /api/auth/change-password                    ║
-║   └─ DELETE /api/auth/me                                 ║
+║   └─ ...more                                             ║
 ║                                                          ║
-║   Properties:                                            ║
+║   Properties & Spaces:                                   ║
 ║   ├─ GET    /api/properties                              ║
-║   ├─ GET    /api/properties/featured                     ║
-║   ├─ GET    /api/properties/stats                        ║
-║   ├─ GET    /api/properties/my                           ║
-║   ├─ GET    /api/properties/:id                          ║
 ║   ├─ POST   /api/properties                              ║
-║   ├─ PATCH  /api/properties/:id                          ║
-║   └─ DELETE /api/properties/:id                          ║
+║   └─ ...more                                             ║
 ║                                                          ║
-║   Favorites:                                             ║
-║   ├─ GET    /api/favorites                               ║
-║   ├─ POST   /api/favorites                               ║
-║   ├─ DELETE /api/favorites/:propertyId                   ║
-║   ├─ PATCH  /api/favorites/:propertyId/notes             ║
-║   ├─ PATCH  /api/favorites/:propertyId/collection        ║
-║   ├─ GET    /api/favorites/check/:propertyId             ║
-║   ├─ POST   /api/favorites/collections                   ║
-║   ├─ PATCH  /api/favorites/collections/:id               ║
-║   ├─ DELETE /api/favorites/collections/:id               ║
-║   └─ GET    /api/favorites/shared/:shareLink             ║
-║                                                          ║
-║   Maps & Measurements:                                   ║
-║   ├─ POST   /api/projects/:id/maps (upload)              ║
-║   ├─ GET    /api/maps/:id                                ║
-║   ├─ POST   /api/maps/:id/measurements                   ║
-║   └─ GET    /api/maps/:id/measurements                   ║
+║   WebSocket Events:                                      ║
+║   ├─ notification (user events)                          ║
+║   └─ property_update (real-time)                         ║
 ║                                                          ║
 ║   Health: GET /api/health                                ║
 ║                                                          ║
