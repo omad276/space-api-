@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import * as propertyService from '../services/propertyService.js';
+import * as cloudinaryService from '../services/cloudinaryService.js';
 import {
   validate,
   createPropertySchema,
@@ -142,7 +143,7 @@ export async function deleteProperty(req: AuthRequest, res: Response<ApiResponse
 
 /**
  * POST /api/properties/:id/images
- * Upload images to a property
+ * Upload images to a property (via Cloudinary)
  */
 export async function uploadImages(req: AuthRequest, res: Response<ApiResponse>): Promise<void> {
   const files = req.files as Express.Multer.File[];
@@ -156,16 +157,12 @@ export async function uploadImages(req: AuthRequest, res: Response<ApiResponse>)
     return;
   }
 
-  // Convert file paths to URLs
-  const imagePaths = files.map((file) => `/uploads/properties/${file.filename}`);
+  // Upload to Cloudinary
+  const uploadResults = await cloudinaryService.uploadImages(files, 'bspace/properties');
+  const imageUrls = uploadResults.map((result) => result.url);
   const isAdmin = req.user!.role === 'admin';
 
-  const property = await propertyService.addImages(
-    req.params.id,
-    req.user!.id,
-    imagePaths,
-    isAdmin
-  );
+  const property = await propertyService.addImages(req.params.id, req.user!.id, imageUrls, isAdmin);
 
   res.status(201).json({
     success: true,

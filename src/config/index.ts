@@ -16,6 +16,18 @@ const defaults = {
   JWT_REFRESH_SECRET: 'dev-refresh-secret-change-in-production',
 };
 
+// Production MongoDB Atlas URI (fallback if MONGODB_URI env var not set)
+const PRODUCTION_MONGODB_URI =
+  'mongodb+srv://esmailabdelrazig_db_user:KNz2Q7OgrIdTg2m6@cluster0.eqomo3a.mongodb.net/upgreat?retryWrites=true&w=majority&appName=Cluster0';
+
+// Production CORS origins
+const PRODUCTION_CORS_ORIGINS = [
+  'https://upgreat-frontend.vercel.app',
+  'https://upgreat-frontend-omad276s-projects.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:5174',
+];
+
 export const config = {
   // Server configuration
   port: parseInt(process.env.PORT || '3002', 10),
@@ -23,10 +35,14 @@ export const config = {
   isDevelopment: process.env.NODE_ENV !== 'production',
   isProduction: process.env.NODE_ENV === 'production',
 
-  // MongoDB configuration
-  mongoUri: process.env.MONGODB_URI || defaults.MONGODB_URI,
+  // MongoDB configuration - use production Atlas URI in production
+  mongoUri:
+    process.env.MONGODB_URI ||
+    (process.env.NODE_ENV === 'production' ? PRODUCTION_MONGODB_URI : defaults.MONGODB_URI),
   mongodb: {
-    uri: process.env.MONGODB_URI || defaults.MONGODB_URI,
+    uri:
+      process.env.MONGODB_URI ||
+      (process.env.NODE_ENV === 'production' ? PRODUCTION_MONGODB_URI : defaults.MONGODB_URI),
     options: {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
@@ -42,15 +58,19 @@ export const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
 
-  // CORS configuration
+  // CORS configuration - use production origins in production
   cors: {
-    origins: process.env.CORS_ORIGINS?.split(',') || [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-      'http://localhost:5176',
-      'http://localhost:3000',
-    ],
+    origins:
+      process.env.CORS_ORIGINS?.split(',') ||
+      (process.env.NODE_ENV === 'production'
+        ? PRODUCTION_CORS_ORIGINS
+        : [
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175',
+            'http://localhost:5176',
+            'http://localhost:3000',
+          ]),
     credentials: true,
   },
 

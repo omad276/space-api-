@@ -1,6 +1,7 @@
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
+import { createNotification } from '../routes/notificationRoutes.js';
 
 // ============================================
 // Types
@@ -89,6 +90,26 @@ export async function sendMessage(senderId: string, data: SendMessageDTO): Promi
     { path: 'receiver', select: 'fullName fullNameAr avatar' },
     { path: 'property', select: 'title titleAr images' },
   ]);
+
+  // Get sender info for notification
+  const sender = await User.findById(senderId).select('fullName fullNameAr');
+  const senderName = sender?.fullName || 'User';
+  const preview = content.length > 50 ? content.substring(0, 50) + '...' : content;
+
+  // Create notification for recipient
+  await createNotification({
+    userId: receiverId,
+    type: 'message',
+    title: 'New Message',
+    titleAr: 'رسالة جديدة',
+    message: `${senderName}: ${preview}`,
+    messageAr: `${senderName}: ${preview}`,
+    data: {
+      messageId: message._id.toString(),
+      senderId,
+      conversationId,
+    }
+  });
 
   return message;
 }

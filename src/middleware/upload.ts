@@ -1,6 +1,5 @@
 import multer from 'multer';
 import path from 'path';
-import crypto from 'crypto';
 import { Request } from 'express';
 import { AppError } from '../utils/AppError.js';
 
@@ -43,20 +42,10 @@ const ALLOWED_EXTENSIONS = [
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 // ============================================
-// Storage Configuration
+// Memory Storage (for Cloudinary uploads)
 // ============================================
 
-const storage = multer.diskStorage({
-  destination: (_req: Request, _file: Express.Multer.File, cb) => {
-    cb(null, 'uploads/maps');
-  },
-  filename: (_req: Request, file: Express.Multer.File, cb) => {
-    // Generate unique filename
-    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${uniqueSuffix}${ext}`);
-  },
-});
+const memoryStorage = multer.memoryStorage();
 
 // ============================================
 // File Filter
@@ -88,15 +77,15 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFil
 };
 
 // ============================================
-// Multer Upload Instance
+// Multer Upload Instance (for maps/CAD files)
 // ============================================
 
 export const uploadMap = multer({
-  storage,
+  storage: memoryStorage,
   fileFilter,
   limits: {
     fileSize: MAX_FILE_SIZE,
-    files: 1, // Single file upload
+    files: 1,
   },
 });
 
@@ -108,17 +97,6 @@ const PROPERTY_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'imag
 const PROPERTY_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 const PROPERTY_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const PROPERTY_MAX_FILES = 20;
-
-const propertyImageStorage = multer.diskStorage({
-  destination: (_req: Request, _file: Express.Multer.File, cb) => {
-    cb(null, 'uploads/properties');
-  },
-  filename: (_req: Request, file: Express.Multer.File, cb) => {
-    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${uniqueSuffix}${ext}`);
-  },
-});
 
 const propertyImageFilter = (
   _req: Request,
@@ -146,7 +124,7 @@ const propertyImageFilter = (
 };
 
 export const uploadPropertyImages = multer({
-  storage: propertyImageStorage,
+  storage: memoryStorage,
   fileFilter: propertyImageFilter,
   limits: {
     fileSize: PROPERTY_MAX_FILE_SIZE,

@@ -29,9 +29,9 @@ export async function createIndustrial(
     throw AppError.notFound('Property not found');
   }
 
-  // Check if property is industrial category
-  if (property.category !== 'industrial') {
-    throw AppError.badRequest('Industrial data can only be added to industrial properties');
+  // Check if property is commercial category (warehouse, storage)
+  if (property.category !== 'commercial') {
+    throw AppError.badRequest('Industrial data can only be added to commercial properties');
   }
 
   // Check if industrial data already exists for this property

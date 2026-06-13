@@ -3,6 +3,7 @@ import { AuthRequest } from '../types/index.js';
 import User from '../models/User.js';
 import Space from '../models/Space.js';
 import { AppError } from '../utils/AppError.js';
+import { createNotification } from '../routes/notificationRoutes.js';
 
 // ============================================
 // User Management
@@ -145,9 +146,25 @@ export async function approveSpace(req: AuthRequest, res: Response) {
     throw AppError.notFound('Space not found');
   }
 
+  // Send notification to space owner
+  const isApproved = approved !== false;
+  await createNotification({
+    userId: space.owner.toString(),
+    type: isApproved ? 'approval' : 'rejection',
+    title: isApproved ? 'Space Approved' : 'Space Rejected',
+    titleAr: isApproved ? 'تمت الموافقة على المساحة' : 'تم رفض المساحة',
+    message: isApproved
+      ? `Your space "${space.title}" has been approved and is now live`
+      : `Your space "${space.title}" was not approved`,
+    messageAr: isApproved
+      ? `تمت الموافقة على مساحتك "${space.titleAr || space.title}" وهي الآن متاحة للعرض`
+      : `لم تتم الموافقة على مساحتك "${space.titleAr || space.title}"`,
+    data: { spaceId: space._id.toString() },
+  });
+
   res.json({
     success: true,
-    message: `Space ${approved !== false ? 'approved' : 'rejected'}`,
+    message: `Space ${isApproved ? 'approved' : 'rejected'}`,
     data: space,
   });
 }

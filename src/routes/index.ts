@@ -10,6 +10,7 @@ import industrialRoutes from './industrialRoutes.js';
 import messageRoutes from './messageRoutes.js';
 import adminRoutes from './adminRoutes.js';
 import setupRoutes from './setupRoutes.js';
+import notificationRoutes from './notificationRoutes.js';
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.use('/properties', propertyRoutes);
 router.use('/favorites', favoriteRoutes);
 router.use('/users', userRoutes);
 router.use('/messages', messageRoutes); // Messaging routes
+router.use('/notifications', notificationRoutes); // Notification routes
 router.use('/admin', adminRoutes); // Admin routes
 router.use(mapRoutes); // Map routes (handles /projects/:id/maps and /maps/:id)
 router.use(measurementRoutes); // Measurement & cost routes

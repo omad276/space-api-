@@ -16,20 +16,33 @@ export async function connectDatabase(): Promise<void> {
     return;
   }
 
-  // Try Atlas first
+  // Log the URI being used (mask password)
+  const maskedUri = config.mongodb.uri.replace(/:([^@]+)@/, ':****@');
+  console.log(`📦 Connecting to MongoDB: ${maskedUri}`);
+
+  // Connect to MongoDB Atlas
   try {
     const conn = await mongoose.connect(config.mongodb.uri, {
       ...config.mongodb.options,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
     });
     isConnected = true;
-    console.log(`📦 MongoDB Atlas connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB Atlas connected: ${conn.connection.host}`);
     return;
-  } catch {
-    console.log('⚠️  Atlas connection failed, starting in-memory MongoDB...');
+  } catch (error) {
+    console.error('❌ MongoDB Atlas connection failed:', error);
+
+    // In production, don't fall back - just fail
+    if (config.isProduction) {
+      console.error('❌ Cannot start without database in production');
+      throw error;
+    }
+
+    // In development, try in-memory fallback
+    console.log('⚠️  Trying in-memory MongoDB for development...');
   }
 
-  // Fallback to in-memory MongoDB
+  // Fallback to in-memory MongoDB (development only)
   try {
     const { MongoMemoryServer } = await import('mongodb-memory-server');
     mongoServer = await MongoMemoryServer.create();

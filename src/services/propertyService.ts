@@ -1,9 +1,9 @@
-import fs from 'fs/promises';
 import Property from '../models/Property.js';
 import { AppError } from '../utils/AppError.js';
+import * as cloudinaryService from './cloudinaryService.js';
 
 // ============================================
-// Types
+// Types (BSpace Sudan)
 // ============================================
 
 interface CreatePropertyDTO {
@@ -11,62 +11,43 @@ interface CreatePropertyDTO {
   titleAr: string;
   description: string;
   descriptionAr: string;
-  type: string;
-  category: string;
-  status?: string;
+  listingType: 'rent' | 'sale';
+  category: 'residential' | 'commercial' | 'land';
+  propertyType: string;
   price: number;
   currency?: string;
-  area: number;
-  bedrooms?: number;
-  bathrooms?: number;
+  rentPeriod?: string;
+  monthsInAdvance?: number;
+  negotiable?: boolean;
   location: {
-    address: string;
-    addressAr: string;
+    state: string;
+    stateAr: string;
     city: string;
     cityAr: string;
-    country?: string;
-    countryAr?: string;
-    coordinates?: {
-      type?: string;
-      coordinates?: [number, number];
-    };
-  };
-  images?: string[];
-  features?: string[];
-  featuresAr?: string[];
-  isFeatured?: boolean;
-}
-
-interface UpdatePropertyDTO {
-  title?: string;
-  titleAr?: string;
-  description?: string;
-  descriptionAr?: string;
-  type?: string;
-  category?: string;
-  status?: string;
-  price?: number;
-  currency?: string;
-  area?: number;
-  bedrooms?: number;
-  bathrooms?: number;
-  location?: {
+    neighborhood?: string;
+    neighborhoodAr?: string;
     address?: string;
     addressAr?: string;
-    city?: string;
-    cityAr?: string;
-    country?: string;
-    countryAr?: string;
-    coordinates?: {
-      type?: string;
-      coordinates?: [number, number];
-    };
+    coordinates?: { type?: string; coordinates?: [number, number] };
   };
+  area: number;
   images?: string[];
+  bedrooms?: number;
+  bathrooms?: number;
+  floors?: number;
+  furnished?: boolean;
+  waterSource?: string;
+  electricity?: string;
+  deedRegistered?: boolean;
+  landClass?: string;
+  fenced?: boolean;
+  streetFrontage?: number;
+  powerCapacity?: number;
   features?: string[];
   featuresAr?: string[];
-  isActive?: boolean;
-  isFeatured?: boolean;
+  whatsappNumber?: string;
+  phoneNumber?: string;
+  showEmail?: boolean;
 }
 
 interface PropertyQueryDTO {
@@ -74,20 +55,19 @@ interface PropertyQueryDTO {
   limit?: number;
   q?: string;
   sort?: string;
-  type?: string | string[];
+  listingType?: 'rent' | 'sale';
+  propertyType?: string | string[];
   category?: string;
-  status?: string | string[];
   minPrice?: number;
   maxPrice?: number;
   minArea?: number;
   maxArea?: number;
   bedrooms?: number;
   bathrooms?: number;
+  state?: string;
   city?: string;
   featured?: boolean;
-  lng?: number;
-  lat?: number;
-  radius?: number;
+  approved?: boolean;
 }
 
 interface PaginatedProperties {
@@ -114,65 +94,59 @@ interface PropertyStats {
 // Property Service
 // ============================================
 
-/**
- * Create a new property
- */
 export async function createProperty(data: CreatePropertyDTO, ownerId: string): Promise<unknown> {
   const property = await Property.create({
     ...data,
     owner: ownerId,
+    isApproved: false,
   });
   return property;
 }
 
-/**
- * Get a property by ID
- */
 export async function getPropertyById(propertyId: string): Promise<unknown> {
   const property = await Property.findById(propertyId)
-    .populate('owner', 'fullName fullNameAr email phone avatar')
-    .populate('agent', 'fullName fullNameAr email phone avatar');
+    .populate('owner', 'fullName email phone whatsappNumber avatar');
 
   if (!property) {
     throw AppError.notFound('Property not found');
   }
 
-  // Increment view count
   property.viewCount = (property.viewCount || 0) + 1;
   await property.save();
 
   return property;
 }
 
-/**
- * Search and filter properties with pagination
- */
 export async function searchProperties(query: PropertyQueryDTO): Promise<PaginatedProperties> {
   const {
     page = 1,
     limit = 12,
     q,
     sort = 'newest',
-    type,
+    listingType,
+    propertyType,
     category,
-    status,
     minPrice,
     maxPrice,
     minArea,
     maxArea,
     bedrooms,
     bathrooms,
+    state,
     city,
     featured,
-    lng,
-    lat,
-    radius,
+    approved,
   } = query;
 
   const skip = (page - 1) * limit;
-
-  // Build filter object
   const filter: Record<string, unknown> = { isActive: true };
+
+  // Only show approved by default (unless admin requesting)
+  if (approved !== undefined) {
+    filter.isApproved = approved;
+  } else {
+    filter.isApproved = true;
+  }
 
   // Text search
   if (q) {
@@ -181,24 +155,24 @@ export async function searchProperties(query: PropertyQueryDTO): Promise<Paginat
       { titleAr: { $regex: q, $options: 'i' } },
       { description: { $regex: q, $options: 'i' } },
       { descriptionAr: { $regex: q, $options: 'i' } },
-      { 'location.address': { $regex: q, $options: 'i' } },
+      { 'location.neighborhood': { $regex: q, $options: 'i' } },
       { 'location.city': { $regex: q, $options: 'i' } },
     ];
   }
 
-  // Type filter
-  if (type) {
-    filter.type = Array.isArray(type) ? { $in: type } : type;
+  // Listing type filter
+  if (listingType) {
+    filter.listingType = listingType;
+  }
+
+  // Property type filter
+  if (propertyType) {
+    filter.propertyType = Array.isArray(propertyType) ? { $in: propertyType } : propertyType;
   }
 
   // Category filter
   if (category) {
     filter.category = category;
-  }
-
-  // Status filter
-  if (status) {
-    filter.status = Array.isArray(status) ? { $in: status } : status;
   }
 
   // Price range
@@ -225,13 +199,14 @@ export async function searchProperties(query: PropertyQueryDTO): Promise<Paginat
     filter.bathrooms = { $gte: bathrooms };
   }
 
+  // State filter
+  if (state) {
+    filter['location.state'] = { $regex: state, $options: 'i' };
+  }
+
   // City filter
   if (city) {
-    filter.$or = filter.$or || [];
-    (filter.$or as unknown[]).push(
-      { 'location.city': { $regex: city, $options: 'i' } },
-      { 'location.cityAr': { $regex: city, $options: 'i' } }
-    );
+    filter['location.city'] = { $regex: city, $options: 'i' };
   }
 
   // Featured filter
@@ -239,20 +214,7 @@ export async function searchProperties(query: PropertyQueryDTO): Promise<Paginat
     filter.isFeatured = featured;
   }
 
-  // Geo search (if coordinates provided)
-  if (lng !== undefined && lat !== undefined && radius) {
-    filter['location.coordinates'] = {
-      $nearSphere: {
-        $geometry: {
-          type: 'Point',
-          coordinates: [lng, lat],
-        },
-        $maxDistance: radius * 1000, // Convert km to meters
-      },
-    };
-  }
-
-  // Build sort object
+  // Sort
   const sortMap: Record<string, Record<string, 1 | -1>> = {
     newest: { createdAt: -1 },
     oldest: { createdAt: 1 },
@@ -263,10 +225,9 @@ export async function searchProperties(query: PropertyQueryDTO): Promise<Paginat
   };
   const sortObj = sortMap[sort] || { createdAt: -1 };
 
-  // Execute queries in parallel
   const [properties, total] = await Promise.all([
     Property.find(filter)
-      .populate('owner', 'fullName fullNameAr avatar')
+      .populate('owner', 'fullName avatar')
       .sort(sortObj)
       .skip(skip)
       .limit(limit),
@@ -284,12 +245,9 @@ export async function searchProperties(query: PropertyQueryDTO): Promise<Paginat
   };
 }
 
-/**
- * Update a property
- */
 export async function updateProperty(
   propertyId: string,
-  data: UpdatePropertyDTO,
+  data: Partial<CreatePropertyDTO> & { isActive?: boolean; isApproved?: boolean; isFeatured?: boolean },
   userId?: string
 ): Promise<unknown> {
   const property = await Property.findById(propertyId);
@@ -298,7 +256,6 @@ export async function updateProperty(
     throw AppError.notFound('Property not found');
   }
 
-  // Check ownership if userId provided
   if (userId && property.owner.toString() !== userId) {
     throw AppError.forbidden('You can only update your own properties');
   }
@@ -309,9 +266,6 @@ export async function updateProperty(
   return property;
 }
 
-/**
- * Delete a property
- */
 export async function deleteProperty(propertyId: string, userId?: string): Promise<void> {
   const property = await Property.findById(propertyId);
 
@@ -319,24 +273,31 @@ export async function deleteProperty(propertyId: string, userId?: string): Promi
     throw AppError.notFound('Property not found');
   }
 
-  // Check ownership if userId provided
   if (userId && property.owner.toString() !== userId) {
     throw AppError.forbidden('You can only delete your own properties');
+  }
+
+  // Delete images from Cloudinary
+  const images = property.images || [];
+  for (const imageUrl of images) {
+    if (imageUrl.includes('cloudinary.com')) {
+      const publicId = cloudinaryService.getPublicIdFromUrl(imageUrl);
+      if (publicId) {
+        cloudinaryService.deleteImage(publicId).catch(() => {});
+      }
+    }
   }
 
   await property.deleteOne();
 }
 
-/**
- * Get property statistics
- */
 export async function getPropertyStats(): Promise<PropertyStats> {
-  const properties = await Property.find({ isActive: true });
+  const properties = await Property.find({ isActive: true, isApproved: true });
 
   const stats: PropertyStats = {
     totalProperties: properties.length,
-    forSale: properties.filter((p) => p.status === 'for_sale').length,
-    forRent: properties.filter((p) => p.status === 'for_rent').length,
+    forSale: properties.filter((p) => p.listingType === 'sale').length,
+    forRent: properties.filter((p) => p.listingType === 'rent').length,
     featured: properties.filter((p) => p.isFeatured).length,
     byType: {},
     byCategory: {},
@@ -344,8 +305,10 @@ export async function getPropertyStats(): Promise<PropertyStats> {
   };
 
   for (const property of properties) {
-    stats.byType[property.type] = (stats.byType[property.type] || 0) + 1;
-    stats.byCategory[property.category] = (stats.byCategory[property.category] || 0) + 1;
+    const propType = property.propertyType as string;
+    const propCat = property.category as string;
+    stats.byType[propType] = (stats.byType[propType] || 0) + 1;
+    stats.byCategory[propCat] = (stats.byCategory[propCat] || 0) + 1;
     if (property.location?.city) {
       stats.byCity[property.location.city] = (stats.byCity[property.location.city] || 0) + 1;
     }
@@ -354,35 +317,23 @@ export async function getPropertyStats(): Promise<PropertyStats> {
   return stats;
 }
 
-/**
- * Get featured properties
- */
 export async function getFeaturedProperties(limit = 6): Promise<unknown[]> {
-  return Property.find({ isActive: true, isFeatured: true })
-    .populate('owner', 'fullName fullNameAr avatar')
+  return Property.find({ isActive: true, isApproved: true, isFeatured: true })
+    .populate('owner', 'fullName avatar')
     .sort({ createdAt: -1 })
     .limit(limit);
 }
 
-/**
- * Get properties by owner
- */
 export async function getPropertiesByOwner(ownerId: string): Promise<unknown[]> {
   return Property.find({ owner: ownerId }).sort({ createdAt: -1 });
 }
 
-/**
- * Get all properties (no pagination)
- */
 export async function getAllProperties(): Promise<unknown[]> {
-  return Property.find({ isActive: true })
-    .populate('owner', 'fullName fullNameAr avatar')
+  return Property.find({ isActive: true, isApproved: true })
+    .populate('owner', 'fullName avatar')
     .sort({ createdAt: -1 });
 }
 
-/**
- * Add images to a property
- */
 export async function addImages(
   propertyId: string,
   userId: string,
@@ -395,16 +346,13 @@ export async function addImages(
     throw AppError.notFound('Property not found');
   }
 
-  // Check ownership unless admin
   if (!isAdmin && property.owner.toString() !== userId) {
     throw AppError.forbidden('You can only add images to your own properties');
   }
 
-  // Add new images to existing array
   const currentImages = property.images || [];
   const newImages = [...currentImages, ...imagePaths];
 
-  // Enforce max 20 images
   if (newImages.length > 20) {
     throw AppError.badRequest('Maximum 20 images allowed per property');
   }
@@ -415,9 +363,6 @@ export async function addImages(
   return property;
 }
 
-/**
- * Remove an image from a property
- */
 export async function removeImage(
   propertyId: string,
   userId: string,
@@ -430,7 +375,6 @@ export async function removeImage(
     throw AppError.notFound('Property not found');
   }
 
-  // Check ownership unless admin
   if (!isAdmin && property.owner.toString() !== userId) {
     throw AppError.forbidden('You can only remove images from your own properties');
   }
@@ -441,21 +385,59 @@ export async function removeImage(
     throw AppError.badRequest('Invalid image index');
   }
 
-  // Get image path before removing
-  const imagePath = images[imageIndex];
-
-  // Remove from array
+  const imageUrl = images[imageIndex];
   images.splice(imageIndex, 1);
   property.images = images;
   await property.save();
 
-  // Try to delete file from disk (non-blocking)
-  if (imagePath && imagePath.startsWith('/uploads/')) {
-    const filePath = imagePath.replace(/^\//, '');
-    fs.unlink(filePath).catch(() => {
-      // Ignore errors if file doesn't exist
-    });
+  if (imageUrl && imageUrl.includes('cloudinary.com')) {
+    const publicId = cloudinaryService.getPublicIdFromUrl(imageUrl);
+    if (publicId) {
+      cloudinaryService.deleteImage(publicId).catch(() => {});
+    }
   }
 
   return property;
+}
+
+// Admin functions
+export async function getPendingProperties(): Promise<unknown[]> {
+  return Property.find({ isActive: true, isApproved: false })
+    .populate('owner', 'fullName email phone')
+    .sort({ createdAt: -1 });
+}
+
+export async function approveProperty(propertyId: string): Promise<unknown> {
+  const property = await Property.findByIdAndUpdate(
+    propertyId,
+    { isApproved: true },
+    { new: true }
+  );
+
+  if (!property) {
+    throw AppError.notFound('Property not found');
+  }
+
+  return property;
+}
+
+export async function rejectProperty(propertyId: string): Promise<void> {
+  const property = await Property.findById(propertyId);
+
+  if (!property) {
+    throw AppError.notFound('Property not found');
+  }
+
+  // Delete images from Cloudinary
+  const images = property.images || [];
+  for (const imageUrl of images) {
+    if (imageUrl.includes('cloudinary.com')) {
+      const publicId = cloudinaryService.getPublicIdFromUrl(imageUrl);
+      if (publicId) {
+        cloudinaryService.deleteImage(publicId).catch(() => {});
+      }
+    }
+  }
+
+  await property.deleteOne();
 }
