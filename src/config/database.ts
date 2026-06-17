@@ -17,20 +17,32 @@ export async function connectDatabase(): Promise<void> {
   }
 
   // Log the URI being used (mask password)
-  const maskedUri = config.mongodb.uri.replace(/:([^@]+)@/, ':****@');
+  const maskedUri = config.mongodb.uri.replace(/(:\/\/[^:]+:)[^@]+@/, '$1****@');
   console.log(`📦 Connecting to MongoDB: ${maskedUri}`);
 
-  // Connect to MongoDB Atlas
+  // Connect to MongoDB Atlas with extended timeout
   try {
     const conn = await mongoose.connect(config.mongodb.uri, {
       ...config.mongodb.options,
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 30000, // Increased to 30s
+      connectTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
     });
     isConnected = true;
     console.log(`✅ MongoDB Atlas connected: ${conn.connection.host}`);
     return;
-  } catch (error) {
-    console.error('❌ MongoDB Atlas connection failed:', error);
+  } catch (error: unknown) {
+    const err = error as Error & { reason?: { servers?: Map<string, unknown> } };
+    console.error('❌ MongoDB Atlas connection failed:', err.message);
+
+    // Log individual server errors if available
+    if (err.reason?.servers) {
+      console.error('Server details:');
+      err.reason.servers.forEach((desc: unknown, host: string) => {
+        const d = desc as { error?: Error };
+        console.error(`  ${host}: ${d.error?.message || 'Unknown error'}`);
+      });
+    }
 
     // In production, don't fall back - just fail
     if (config.isProduction) {
