@@ -45,7 +45,8 @@ export const config = {
       (process.env.NODE_ENV === 'production' ? PRODUCTION_MONGODB_URI : defaults.MONGODB_URI),
     options: {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000,
+      connectTimeoutMS: 30000,
       socketTimeoutMS: 45000,
     },
   },
