@@ -20,9 +20,10 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): void {
-  // Log error in development
-  if (config.isDevelopment) {
-    console.error('❌ Error:', err);
+  // Always log errors for debugging
+  console.error('❌ Error:', err.name, '-', err.message);
+  if (config.isDevelopment && err.stack) {
+    console.error(err.stack);
   }
 
   // Default error values
