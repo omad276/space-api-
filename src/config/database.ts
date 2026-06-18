@@ -1,29 +1,5 @@
 import mongoose from 'mongoose';
-import net from 'net';
 import { config } from './index.js';
-
-// Test TCP connectivity to a host
-async function testConnection(host: string, port: number): Promise<string> {
-  return new Promise((resolve) => {
-    const socket = new net.Socket();
-    const timeout = 5000;
-
-    socket.setTimeout(timeout);
-    socket.on('connect', () => {
-      socket.destroy();
-      resolve(`✅ ${host}:${port} - TCP reachable`);
-    });
-    socket.on('timeout', () => {
-      socket.destroy();
-      resolve(`❌ ${host}:${port} - Timeout`);
-    });
-    socket.on('error', (err) => {
-      socket.destroy();
-      resolve(`❌ ${host}:${port} - ${err.message}`);
-    });
-    socket.connect(port, host);
-  });
-}
 
 // Connection state tracking
 let isConnected = false;
@@ -43,16 +19,6 @@ export async function connectDatabase(): Promise<void> {
   // Log the URI being used (mask password)
   const maskedUri = config.mongodb.uri.replace(/(:\/\/[^:]+:)[^@]+@/, '$1****@');
   console.log(`📦 Connecting to MongoDB: ${maskedUri}`);
-
-  // Test network connectivity to MongoDB servers
-  console.log('🔍 Testing network connectivity to MongoDB servers...');
-  const servers = [
-    'ac-gmywka6-shard-00-00.eqomo3a.mongodb.net',
-    'ac-gmywka6-shard-00-01.eqomo3a.mongodb.net',
-    'ac-gmywka6-shard-00-02.eqomo3a.mongodb.net',
-  ];
-  const results = await Promise.all(servers.map((s) => testConnection(s, 27017)));
-  results.forEach((r) => console.log(r));
 
   // Connect to MongoDB Atlas with extended timeout
   try {
