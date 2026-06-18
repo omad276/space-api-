@@ -18,7 +18,7 @@ const defaults = {
 
 // Production MongoDB Atlas URI (fallback if MONGODB_URI env var not set)
 const PRODUCTION_MONGODB_URI =
-  'mongodb+srv://esmailabdelrazig_db_user:MrlhN3ZvwjYll7EO@cluster0.nhjzgrx.mongodb.net/upgreat?retryWrites=true&w=majority&appName=Cluster0';
+  'mongodb+srv://esmailabdelrazig_db_user:BSpace2026Sudan@cluster0.nhjzgrx.mongodb.net/upgreat?retryWrites=true&w=majority&appName=Cluster0';
 
 // Production CORS origins
 const PRODUCTION_CORS_ORIGINS = [
