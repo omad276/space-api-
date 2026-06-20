@@ -31,19 +31,21 @@ router.put('/users/:id/role', updateUserRole);
 router.delete('/users/:id', deleteUser);
 
 // ============================================
-// Space Management
+// Property Management (was "Space")
 // ============================================
 
-// Get all spaces (including pending approval)
+// Get all properties (including pending approval)
 router.get('/spaces', getAllSpaces);
+router.get('/properties', getAllSpaces); // Alias for properties
 
-// Approve a space listing
+// Approve a property listing
 router.put('/spaces/:id/approve', approveSpace);
+router.patch('/spaces/:id/approve', approveSpace); // Support PATCH too
 
-// Feature/unfeature a space
+// Feature/unfeature a property
 router.put('/spaces/:id/feature', featureSpace);
 
-// Delete a space
+// Delete a property
 router.delete('/spaces/:id', deleteSpace);
 
 // ============================================

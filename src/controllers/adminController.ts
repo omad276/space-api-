@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types/index.js';
 import User from '../models/User.js';
-import Space from '../models/Space.js';
+import Property from '../models/Property.js';
 import { AppError } from '../utils/AppError.js';
 import { createNotification } from '../routes/notificationRoutes.js';
 
@@ -81,7 +81,7 @@ export async function deleteUser(req: AuthRequest, res: Response) {
   }
 
   // Also delete user's spaces
-  await Space.deleteMany({ owner: id });
+  await Property.deleteMany({ owner: id });
 
   res.json({
     success: true,
@@ -90,11 +90,11 @@ export async function deleteUser(req: AuthRequest, res: Response) {
 }
 
 // ============================================
-// Space Management
+// Property Management
 // ============================================
 
 /**
- * Get all spaces (admin view)
+ * Get all properties (admin view)
  */
 export async function getAllSpaces(req: AuthRequest, res: Response) {
   const page = parseInt(req.query.page as string) || 1;
@@ -109,12 +109,12 @@ export async function getAllSpaces(req: AuthRequest, res: Response) {
   if (approved === 'false') filter.isApproved = false;
 
   const [spaces, total] = await Promise.all([
-    Space.find(filter)
+    Property.find(filter)
       .populate('owner', 'fullName email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    Space.countDocuments(filter),
+    Property.countDocuments(filter),
   ]);
 
   res.json({
@@ -130,20 +130,20 @@ export async function getAllSpaces(req: AuthRequest, res: Response) {
 }
 
 /**
- * Approve a space listing
+ * Approve a property listing
  */
 export async function approveSpace(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const { approved } = req.body;
 
-  const space = await Space.findByIdAndUpdate(
+  const space = await Property.findByIdAndUpdate(
     id,
     { isApproved: approved !== false },
     { new: true }
   );
 
   if (!space) {
-    throw AppError.notFound('Space not found');
+    throw AppError.notFound('Property not found');
   }
 
   // Send notification to space owner
@@ -151,7 +151,7 @@ export async function approveSpace(req: AuthRequest, res: Response) {
   await createNotification({
     userId: space.owner.toString(),
     type: isApproved ? 'approval' : 'rejection',
-    title: isApproved ? 'Space Approved' : 'Space Rejected',
+    title: isApproved ? 'Property Approved' : 'Property Rejected',
     titleAr: isApproved ? 'تمت الموافقة على المساحة' : 'تم رفض المساحة',
     message: isApproved
       ? `Your space "${space.title}" has been approved and is now live`
@@ -164,46 +164,50 @@ export async function approveSpace(req: AuthRequest, res: Response) {
 
   res.json({
     success: true,
-    message: `Space ${isApproved ? 'approved' : 'rejected'}`,
+    message: `Property ${isApproved ? 'approved' : 'rejected'}`,
     data: space,
   });
 }
 
 /**
- * Feature/unfeature a space
+ * Feature/unfeature a property
  */
 export async function featureSpace(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const { featured } = req.body;
 
-  const space = await Space.findByIdAndUpdate(id, { isFeatured: featured === true }, { new: true });
+  const space = await Property.findByIdAndUpdate(
+    id,
+    { isFeatured: featured === true },
+    { new: true }
+  );
 
   if (!space) {
-    throw AppError.notFound('Space not found');
+    throw AppError.notFound('Property not found');
   }
 
   res.json({
     success: true,
-    message: `Space ${featured ? 'featured' : 'unfeatured'}`,
+    message: `Property ${featured ? 'featured' : 'unfeatured'}`,
     data: space,
   });
 }
 
 /**
- * Delete a space
+ * Delete a property
  */
 export async function deleteSpace(req: AuthRequest, res: Response) {
   const { id } = req.params;
 
-  const space = await Space.findByIdAndDelete(id);
+  const space = await Property.findByIdAndDelete(id);
 
   if (!space) {
-    throw AppError.notFound('Space not found');
+    throw AppError.notFound('Property not found');
   }
 
   res.json({
     success: true,
-    message: 'Space deleted',
+    message: 'Property deleted',
   });
 }
 
@@ -222,21 +226,21 @@ export async function getStats(_req: AuthRequest, res: Response) {
     pendingApproval,
     featuredSpaces,
     usersByRole,
-    spacesByType,
+    propertiesByType,
     recentUsers,
     recentSpaces,
   ] = await Promise.all([
     User.countDocuments({}),
-    Space.countDocuments({}),
-    Space.countDocuments({ isActive: true, isApproved: true }),
-    Space.countDocuments({ isApproved: false }),
-    Space.countDocuments({ isFeatured: true }),
+    Property.countDocuments({}),
+    Property.countDocuments({ isActive: true, isApproved: true }),
+    Property.countDocuments({ isApproved: false }),
+    Property.countDocuments({ isFeatured: true }),
     User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
-    Space.aggregate([{ $group: { _id: '$spaceType', count: { $sum: 1 } } }]),
+    Property.aggregate([{ $group: { _id: '$propertyType', count: { $sum: 1 } } }]),
     User.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
     }),
-    Space.countDocuments({
+    Property.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
     }),
   ]);
@@ -256,7 +260,7 @@ export async function getStats(_req: AuthRequest, res: Response) {
         },
         {} as Record<string, number>
       ),
-      spacesByType: spacesByType.reduce(
+      spacesByType: propertiesByType.reduce(
         (acc, { _id, count }) => {
           acc[_id] = count;
           return acc;
@@ -277,8 +281,8 @@ export async function getStats(_req: AuthRequest, res: Response) {
 export async function getActivityLog(_req: AuthRequest, res: Response) {
   const [recentUsers, recentSpaces] = await Promise.all([
     User.find({}).select('fullName email role createdAt').sort({ createdAt: -1 }).limit(10),
-    Space.find({})
-      .select('title spaceType status isApproved createdAt')
+    Property.find({})
+      .select('title titleAr propertyType listingType isApproved createdAt')
       .populate('owner', 'fullName')
       .sort({ createdAt: -1 })
       .limit(10),

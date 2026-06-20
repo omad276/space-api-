@@ -7,24 +7,36 @@ const router = Router();
 // DELETE THIS FILE AFTER CREATING ADMIN
 router.post('/create-admin', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const adminEmail = 'admin@space.com';
+    const adminEmail = 'admin@bspace.sd';
+    const adminPassword = 'BSpace2026Admin';
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: adminEmail });
-    if (existingAdmin) {
+    let admin = await User.findOne({ email: adminEmail });
+    if (admin) {
+      // Update existing admin password
+      admin.password = adminPassword;
+      admin.role = 'admin';
+      admin.isActive = true;
+      admin.isVerified = true;
+      await admin.save();
+
       res.json({
-        success: false,
-        message: 'Admin user already exists',
+        success: true,
+        message: 'Admin password updated',
+        credentials: {
+          email: adminEmail,
+          password: adminPassword,
+        },
       });
       return;
     }
 
     // Create admin user - password will be hashed by User model pre-save hook
-    const admin = new User({
+    admin = new User({
       email: adminEmail,
-      password: 'Admin@2024',
-      fullName: 'Super Admin',
-      phone: '+249911716850',
+      password: adminPassword,
+      fullName: 'مدير النظام',
+      phone: '+249123456789',
       countryCode: '+249',
       role: 'admin',
       isActive: true,
@@ -37,8 +49,8 @@ router.post('/create-admin', async (_req: Request, res: Response): Promise<void>
       success: true,
       message: 'Admin user created successfully',
       credentials: {
-        email: 'admin@space.com',
-        password: 'Admin@2024',
+        email: adminEmail,
+        password: adminPassword,
       },
     });
   } catch (error) {

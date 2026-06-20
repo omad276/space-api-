@@ -18,15 +18,16 @@ router.get('/featured', optionalAuth, propertyController.getFeaturedProperties);
 // GET /api/properties/stats - Get statistics (public)
 router.get('/stats', optionalAuth, propertyController.getStats);
 
-// GET /api/properties/:id - Get property details (public)
-router.get('/:id', optionalAuth, propertyController.getProperty);
-
 // ============================================
 // Protected Routes (require authentication)
 // ============================================
 
 // GET /api/properties/my - Get current user's properties
+// IMPORTANT: This must be before /:id to avoid "my" being treated as an ID
 router.get('/my', authenticate, propertyController.getMyProperties);
+
+// GET /api/properties/:id - Get property details (public)
+router.get('/:id', optionalAuth, propertyController.getProperty);
 
 // POST /api/properties - Create a new property
 router.post('/', authenticate, propertyController.createProperty);
